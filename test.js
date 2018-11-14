@@ -13,9 +13,9 @@ let bc = new Blockchain();
         // bc.getBlock(i).then((res) => console.log(res));
         // console.log(result);
         i++;
-        if (i < 6) theLoop(i);
+        if (i < 4) theLoop(i);
         }, 2000);
-})(3);
+})(0);
 
 bc.validateChain();
 

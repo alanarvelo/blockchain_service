@@ -17,8 +17,6 @@ const Block = require('./Block.js');
 
 class Blockchain{
   constructor(){
-    this.chainLength;
-    this.chain = [];
     this.getLastBlockHeight().then( (lastBlockHeight) => {
       if (lastBlockHeight == -1) this.addBlock(new Block("First block in the chain - Genesis block"));
     });
@@ -26,32 +24,33 @@ class Blockchain{
 
   // Add new block
   async addBlock(newBlock){
-    // UTC timestamp
-    newBlock.time = new Date().getTime().toString().slice(0,-3);
+    try {
+      // Getting the height of the last block=
+      const lastBlockHeight = await this.getLastBlockHeight();
+      
+      if (lastBlockHeight >= 0) {
+        newBlock.height =  lastBlockHeight + 1;
+        // previous block
+        const previousBlock = await this.getBlock(lastBlockHeight);
+        // hash linking
+        newBlock.previousBlockHash = previousBlock.hash;
+        // Block hash with SHA256 using newBlock and converting to a string
+        newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
+        // Adding block object to chain
+        await this.saveBlock(newBlock.height, JSON.stringify(newBlock).toString());
 
-    // Getting the height of the last block
-    const lastBlockHeight = await this.getLastBlockHeight();
-    
-    if (lastBlockHeight >= 0) {
-      newBlock.height =  lastBlockHeight + 1;
-      // previous block
-      const previousBlock = await this.getBlock(lastBlockHeight);
-      // hash linking
-      newBlock.previousBlockHash = previousBlock.hash;
-      // Block hash with SHA256 using newBlock and converting to a string
-      newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
-      // Adding block object to chain
-      this.saveBlock(newBlock.height, JSON.stringify(newBlock).toString())
-      .then(() => {console.log("Saved block successfully")})
-      .catch((err) => {console.log("Error saving Block: ", err)});
+      } else if (lastBlockHeight == -1) {
+        // create and save Genesis block
+        newBlock.body = "First block in the chain - Genesis block";
+        newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
+        await this.saveBlock(newBlock.height, JSON.stringify(newBlock).toString());
+      }
+      console.log("Saved block successfully");
+      return newBlock
 
-    } else if (lastBlockHeight == -1) {
-      // create and save Genesis block
-      newBlock.body = "First block in the chain - Genesis block";
-      newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
-      this.saveBlock(newBlock.height, JSON.stringify(newBlock).toString())
-      .then(() => {console.log("Saved Genesis block successfully")})
-      .catch(() => {console.log("Error saving Genesis Block")});
+    } catch (err) {
+      console.log("There was an error in the addBlock method of the Blockchain Class", err);
+      return err;
     }
   
   }
@@ -63,7 +62,7 @@ class Blockchain{
       // console.log('Block #' + key + ': ' + value );
       db.put(key, value, function(err, result) {
         if (err) reject(err);
-        resolve(result);
+        else resolve(true);
       });
     });
   }
@@ -77,7 +76,7 @@ class Blockchain{
       .on('data', () => { count++; })
       .on('error', (err) => {
         reject(err);
-        console.log('Error counting block to get the lastBlockHeight' + err);
+        console.log('Error counting block to get the lastBlockHeight',  err);
       })
       .on('close', () => resolve(count) )
     })
@@ -88,8 +87,8 @@ class Blockchain{
   getBlock(blockHeight){
     return new Promise((resolve, reject) => {
       db.get(blockHeight, function(err, block) {
-        if (err) return console.log('Error getting block', err);;
-        resolve(JSON.parse(block));
+        if (err) reject(err); // return console.log('Error getting block', err);;
+        else resolve(JSON.parse(block));
       });
     });
   }
@@ -117,7 +116,7 @@ class Blockchain{
           console.log('Block #'+blockHeight+' invalid hash:\n'+blockHash+'<>'+validBlockHash);
           resolve(false);
           }
-      }).catch( (err) => console.log("There was an error validatinBlock" + err));
+      }).catch( (err) => console.log("There was an error validatinBlock", err));
 
     });
   }
