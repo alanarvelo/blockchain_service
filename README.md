@@ -32,10 +32,10 @@ npm install express --save
 ## Testing
 
 To test code:
-1: Open a command prompt or shell terminal after install node.js.
-2: Start the server by running the following command on your terminal.
+1. Open a command prompt or shell terminal after install node.js.
+2. Start the server by running the following command on your terminal.
 ```
 node app.js
 ```
-3: Make a GET request to http://localhost:8000/block/:height for the block with the corresponding height to appear in your browser.
-4: Make a POST request to http://localhost:8000/block/ with a JSON object with a single key called "body", to create a new block with such body. The response will be the new, completed block as saved to the blockchain. 
+3. Make a GET request to http://localhost:8000/block/:height for the block with the corresponding height to appear in your browser.
+4. Make a POST request to http://localhost:8000/block/ with a JSON object with a single key called "body", to create a new block with such body. The response will be the new, completed block as saved to the blockchain. 
