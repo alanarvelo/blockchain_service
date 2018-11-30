@@ -10,6 +10,8 @@ const db = level(chainDB);
 
 const Block = require('./Block.js');
 
+const hex2ascii = require('hex2ascii');
+
 
 /* ===== Blockchain Class ==========================
 |  Class with a constructor for new blockchain 		|
@@ -18,7 +20,7 @@ const Block = require('./Block.js');
 class Blockchain{
   constructor(){
     this.getLastBlockHeight().then( (lastBlockHeight) => {
-      if (lastBlockHeight == -1) this.addBlock(new Block("First block in the chain - Genesis block"));
+      if (lastBlockHeight == -1) this.addBlock(new Block("Create First Block"));
     });
   }
 
@@ -31,9 +33,11 @@ class Blockchain{
       if (lastBlockHeight >= 0) {
         newBlock.height =  lastBlockHeight + 1;
         // previous block
-        const previousBlock = await this.getBlock(lastBlockHeight);
+        const previousBlock = await this.getBlockByHeight(lastBlockHeight);
         // hash linking
         newBlock.previousBlockHash = previousBlock.hash;
+        // encoding star's story
+        newBlock.body.star.story = Buffer(newBlock.body.star.story).toString('hex');
         // Block hash with SHA256 using newBlock and converting to a string
         newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
         // Adding block object to chain
@@ -41,7 +45,9 @@ class Blockchain{
 
       } else if (lastBlockHeight == -1) {
         // create and save Genesis block
-        newBlock.body = "First block in the chain - Genesis block";
+        newBlock.body = {"address": "0000GEN", "star": {"story": "First block in the chain - Genesis block"}};
+        // encoding star's story
+        newBlock.body.star.story = Buffer(newBlock.body.star.story).toString('hex');
         newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
         await this.saveBlock(newBlock.height, JSON.stringify(newBlock).toString());
       }
@@ -84,21 +90,72 @@ class Blockchain{
 
 
   // get block
-  getBlock(blockHeight){
+  getBlockByHeight(blockHeight){
     return new Promise((resolve, reject) => {
       db.get(blockHeight, function(err, block) {
         if (err) reject(err); // return console.log('Error getting block', err);;
-        else resolve(JSON.parse(block));
+        else {
+          block = JSON.parse(block);
+          // decoding star's story
+          block.body.star.storyDecoded = hex2ascii(block.body.star.story);
+          resolve(block)
+        };
       });
     });
   }
+
+
+  // Get block by hash
+  getBlockByHash(hash) {
+    return new Promise((resolve, reject) => {
+      let block = null;
+      db.createReadStream()
+        .on('data', (data) => {
+          if (JSON.parse(data.value).hash === hash) {
+              block = JSON.parse(data.value);
+              // decoding star's story
+              block.body.star.storyDecoded = hex2ascii(block.body.star.story);
+            }
+        })
+        .on('error', function (err) {
+            reject(err)
+        })
+        .on('close', function () {
+            resolve(block);
+        });
+    });
+  }
+
+
+  // Get block by WalletAddress
+  getBlockByWalletAddress(address) {
+    return new Promise((resolve, reject) => {
+      let blocks = [];
+      db.createReadStream()
+        .on('data', (data) => {
+          if (JSON.parse(data.value).body.address === address) {
+              let block = JSON.parse(data.value);
+              // decoding star's story
+              block.body.star.storyDecoded = hex2ascii(block.body.star.story);
+              blocks.push(block);
+            }
+        })
+        .on('error', function (err) {
+            reject(err)
+        })
+        .on('close', function () {
+            resolve(blocks);
+        });
+    });
+  }
+
 
 
   // validate block
   validateBlock(blockHeight){
     return new Promise((resolve, reject) => {
       // get block object
-      this.getBlock(blockHeight)
+      this.getBlockByHeight(blockHeight)
       .then((block) => {
         // get block hash
         let blockHash = block.hash;
@@ -131,7 +188,7 @@ class Blockchain{
     const lastBlockHeight = await this.getLastBlockHeight();
     for (let i = 0; i <= lastBlockHeight; i++) {
     ValidBlockArray.push(this.validateBlock(i));
-    blocks.push(this.getBlock(i));
+    blocks.push(this.getBlockByHeight(i));
     }
     
     // verify each block is valid
