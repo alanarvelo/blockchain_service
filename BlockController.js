@@ -101,15 +101,16 @@ class BlockController {
                 let starObj = req.body
                 if (Object.keys(starObj).length != 2) throw Error("Invalid star object for Block's body");
                 if (!this.mempoolValid.includes(starObj.address)) throw Error("Wallet Address has not validated a request")
+                if (starObj.star.story.split(" ").length > 250) throw Error("Invalid star story, > 250 words")
                 let body = {
                     address: starObj.address,
                     star: starObj.star
                 };
-                let savedBlock = await this.Blockchain.addBlock(new Block(body));
-                savedBlock.body.star.storyDecoded = hex2ascii(savedBlock.body.star.story);
+                let savedBlockHeight = await this.Blockchain.addBlock(new Block(body));
+                let savedBlock = await this.Blockchain.getBlockByHeight(savedBlockHeight);
                 res.send(savedBlock);
             } catch (err) {
-                if (err.message.includes("Block's body")) {
+                if (err.message.includes("Block's body") || err.message.includes("Wallet Address") || err.message.includes("250 words")) {
                     console.log(err)
                     res.send(err.message, err.code);
                 } else {
@@ -144,7 +145,7 @@ class BlockController {
             } else {
                 reqValObj["address"] = address,
                 reqValObj["requestTimeStamp"] = reqTimestamp;
-                reqValObj["message"] = `${address}:0:starRegistry`; // ${reqTimestamp} changed this here for testing purposes
+                reqValObj["message"] = `${address}:${reqTimestamp}:starRegistry`; //  changed this here for testing purposes
                 reqValObj["validationWindow"] = this.TimeoutRequestsWindowTime/1000;   
                            
             }
@@ -196,7 +197,6 @@ class BlockController {
             } else {
                 res.send("You must first submit a Validation Request, go to: /validateRequest")
             }
-            console.log(this.mempoolValid)
         })
     }
 

@@ -52,7 +52,7 @@ class Blockchain{
         await this.saveBlock(newBlock.height, JSON.stringify(newBlock).toString());
       }
       console.log("Saved block successfully");
-      return newBlock
+      return newBlock.height
 
     } catch (err) {
       console.log("There was an error in the addBlock method of the Blockchain Class", err);
