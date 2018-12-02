@@ -49,10 +49,10 @@ class BlockController {
 
     
     /**
-     * Implement a GET Endpoint to retrieve a block by hash, url: "/stars/hash/:hash"
+     * Implement a GET Endpoint to retrieve a block by hash, url: "/stars/hash:[hash]"
      */
     getBlockByHash() {
-        this.app.get("/stars/hash/:hash", async (req, res) => {
+        this.app.get("/stars/hash::hash", async (req, res) => {
             let reqBlock = null;
             try {
                 reqBlock = await this.Blockchain.getBlockByHash(req.params.hash);
@@ -71,10 +71,10 @@ class BlockController {
 
 
     /**
-     * Implement a GET Endpoint to retrieve a block by walletAddress, url: "/stars/address/:address"
+     * Implement a GET Endpoint to retrieve a block by walletAddress, url: "/stars/address:[address]"
      */
     getBlockByWalletAddress(){
-        this.app.get("/stars/address/:address", async (req, res) => {
+        this.app.get("/stars/address::address", async (req, res) => {
             let reqBlocks = null;
             try {
                 reqBlocks = await this.Blockchain.getBlockByWalletAddress(req.params.address);
@@ -98,21 +98,35 @@ class BlockController {
     postNewBlock() {
         this.app.post("/block", async (req, res) => {
             try {
-                let starObj = req.body
-                if (Object.keys(starObj).length != 2) throw Error("Invalid star object for Block's body");
-                if (!this.mempoolValid.includes(starObj.address)) throw Error("Wallet Address has not validated a request")
-                if (starObj.star.story.split(" ").length > 250) throw Error("Invalid star story, > 250 words")
+                let starObj = req.body;
+                // Wallet Address has requested validation
+                if (!this.mempoolValid.includes(starObj.address)) throw Error("Wallet Address has not validated a request");
+                // Star Object has required properties
+                else if (!Object.keys(starObj).includes('address', 'star') || 
+                         !Object.keys(starObj.star).includes('dec', 'ra', 'story')) {
+                            throw Error("Invalid star object format for Block's body");
+                }
+                // Star story is not too long
+                else if (starObj.star.story.split(" ").length > 250 ||
+                         Buffer.byteLength(starObj.star.story, 'ascii') > 500) {
+                            throw Error("Invalid star story, > 250 words or > 500 bites");
+                }
+                // Star story has only ascii characters
+                else if ([...starObj.star.story].some(char => char.charCodeAt(0) > 127)) throw Error("String story has non-Ascii characters")
                 let body = {
                     address: starObj.address,
                     star: starObj.star
                 };
+
                 let savedBlockHeight = await this.Blockchain.addBlock(new Block(body));
                 let savedBlock = await this.Blockchain.getBlockByHeight(savedBlockHeight);
                 res.send(savedBlock);
             } catch (err) {
-                if (err.message.includes("Block's body") || err.message.includes("Wallet Address") || err.message.includes("250 words")) {
-                    console.log(err)
-                    res.send(err.message, err.code);
+                if (err.message.includes("validated a request") ||
+                    err.message.includes("Invalid ") ||
+                    err.message.includes("non-Ascii")) {
+                        console.log(err)
+                        res.send(err.message);
                 } else {
                     console.log(err)
                     res.send(`Error in postNewBlock method of Block Controller. \n ${err}`);
@@ -145,7 +159,7 @@ class BlockController {
             } else {
                 reqValObj["address"] = address,
                 reqValObj["requestTimeStamp"] = reqTimestamp;
-                reqValObj["message"] = `${address}:${reqTimestamp}:starRegistry`; //  changed this here for testing purposes
+                reqValObj["message"] = `${address}:${reqTimestamp} :starRegistry`; // sub 0 for ${reqTimestamp} for testing 
                 reqValObj["validationWindow"] = this.TimeoutRequestsWindowTime/1000;   
                            
             }
@@ -200,40 +214,8 @@ class BlockController {
         })
     }
 
-    // removeValidationRequest(walletAddress) {
-    //     console.log(`we got up to here ${walletAddress} ------ ${this.timeoutRequests}`)
-    //     // this.timeoutRequests = this.timeoutRequests.filter((val) => {
-    //     //                             return val !== walletAddress;
-    //     //                                 });
-    //     // console.log(this.timeoutRequests);
-    //     return 4
-
-
-
-
 
 } // Block Controller Class closing bracket
-
-
-        // self.timeoutRequests[request.walletAddress] = 
-        // setTimeout(function(){ self.removeValidationRequest(request.walletAddress)}, TimeoutRequestsWindowTime );
-
-
-
-
-            // try {
-            //     if (!req.body.body) throw Error("Empty string or invalid value for Block's body");
-            //     let savedBlock = await this.Blockchain.addBlock(new Block(req.body.body));
-            //     res.send(savedBlock);
-            // } catch (err) {
-            //     if (err.message.includes("Block's body")) {
-            //         console.log(err)
-            //         res.send(err.message);
-            //     } else {
-            //         console.log(err)
-            //         res.send(`Error in postNewBlock method of Block Controller. \n ${err}`);
-            //     }
-            // }
 
 
 /**
