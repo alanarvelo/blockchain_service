@@ -21,7 +21,6 @@ class BlockController {
         this.postValidateSignature();
         this.getBlockByHash();
         this.getBlockByWalletAddress();
-        // this.removeValidationRequest();
         this.TimeoutRequestsWindowTime = 5*60*1000;
         this.mempool = [];
         this.timeoutRequests = {};   
@@ -102,8 +101,8 @@ class BlockController {
                 // Wallet Address has requested validation
                 if (!this.mempoolValid.includes(starObj.address)) throw Error("Wallet Address has not validated a request");
                 // Star Object has required properties
-                else if (!Object.keys(starObj).includes('address', 'star') || 
-                         !Object.keys(starObj.star).includes('dec', 'ra', 'story')) {
+                else if (!['address', 'star'].every( r => Object.keys(starObj).includes(r) ) || 
+                         !['dec', 'ra', 'story'].every( s => Object.keys(starObj.star).includes(s) )  ){
                             throw Error("Invalid star object format for Block's body");
                 }
                 // Star story is not too long
@@ -120,6 +119,7 @@ class BlockController {
 
                 let savedBlockHeight = await this.Blockchain.addBlock(new Block(body));
                 let savedBlock = await this.Blockchain.getBlockByHeight(savedBlockHeight);
+                this.mempoolValid = this.mempoolValid.filter(a => a !== starObj.address);
                 res.send(savedBlock);
             } catch (err) {
                 if (err.message.includes("validated a request") ||
@@ -159,7 +159,7 @@ class BlockController {
             } else {
                 reqValObj["address"] = address,
                 reqValObj["requestTimeStamp"] = reqTimestamp;
-                reqValObj["message"] = `${address}:${reqTimestamp} :starRegistry`; // sub 0 for ${reqTimestamp} for testing 
+                reqValObj["message"] = `${address}:${reqTimestamp}:starRegistry`; // sub 0 for ${reqTimestamp} for testing 
                 reqValObj["validationWindow"] = this.TimeoutRequestsWindowTime/1000;   
                            
             }
